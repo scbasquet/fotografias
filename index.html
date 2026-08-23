@@ -78,7 +78,17 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .visor img{max-width:100%;max-height:82vh;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .visor .vcod{margin-top:14px;font-family:'JetBrains Mono';font-weight:700;color:var(--dorado);letter-spacing:.05em;font-size:15px}
 .visor .vcerrar{position:absolute;top:16px;right:16px;width:44px;height:44px;border:0;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font-size:22px;cursor:pointer}
+.visor .vnav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border:0;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font-size:30px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);z-index:2}
+.visor .vprev{left:12px;padding-right:3px}
+.visor .vnext{right:12px;padding-left:3px}
+.visor .vnav:active{transform:translateY(-50%) scale(.9)}
 .visor .vsel{margin-top:16px;max-width:280px}
+.selgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.selitem{position:relative;border-radius:10px;overflow:hidden;background:var(--carbon);aspect-ratio:1/1}
+.selitem img{width:100%;height:100%;object-fit:cover;display:block}
+.selitem .scod{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.82));color:#fff;font-family:'JetBrains Mono';font-size:9.5px;letter-spacing:.02em;padding:12px 4px 3px;text-align:center}
+.selitem .squit{position:absolute;top:4px;right:4px;width:24px;height:24px;border:0;border-radius:99px;background:rgba(15,11,13,.78);color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.selitem .squit:active{transform:scale(.9)}
 
 /* ===== Nav inferior ===== */
 nav{position:fixed;left:0;right:0;bottom:0;background:rgba(24,18,21,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--humo);display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom)}
@@ -157,6 +167,12 @@ progress{border-radius:99px;overflow:hidden}
       <label>Email</label><input id="fEmail" type="email" placeholder="Ej: juan@email.com">
       <label>Teléfono (WhatsApp)</label><input id="fTel" type="tel" placeholder="Ej: 249 4 123456">
       <p class="aviso" style="margin-top:8px" id="mpAviso"></p>
+    </div>
+    <div class="card" style="border:1.5px solid var(--dorado)">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13.5px;line-height:1.5;color:var(--crema);text-transform:none;letter-spacing:normal;font-weight:400;margin:0">
+        <input type="checkbox" id="fConsent" style="width:20px;height:20px;margin-top:2px;flex-shrink:0;accent-color:var(--rojo)">
+        <span>Declaro ser <b>madre, padre o tutor/a</b> del/los menor/es que aparecen en las fotos que compro, y <b>autorizo</b> a SC Básquet a comercializarme estas imágenes. Las adquiero para <b>uso personal y familiar</b>, comprometiéndome a no publicarlas ni distribuirlas de forma que se identifique a otros menores sin autorización. <a href="#" onclick="verTerminos(event)" style="color:var(--dorado);font-weight:700">Ver términos</a>.</span>
+      </label>
     </div>
     <button class="btn btn-rojo" id="btnEnviar" onclick="enviarPedido()">Ir a pagar</button>
     <p class="aviso" style="margin-top:10px;text-align:center">Pago seguro con Mercado Pago. Al confirmar te damos un número de pedido para seguir el estado.</p>
@@ -308,6 +324,8 @@ progress{border-radius:99px;overflow:hidden}
 
 <div class="visor" id="visor">
   <button class="vcerrar" onclick="cerrarFoto()" aria-label="Cerrar">✕</button>
+  <button class="vnav vprev" id="vprev" onclick="navVisor(-1)" aria-label="Anterior">‹</button>
+  <button class="vnav vnext" id="vnext" onclick="navVisor(1)" aria-label="Siguiente">›</button>
   <img id="visorImg" src="" alt="">
   <div class="vcod" id="visorCod"></div>
   <button class="btn btn-dorado vsel" id="visorBtn" onclick="toggleDesdeVisor()">Agregar a mi pedido</button>
@@ -326,6 +344,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxOoLrOf7cqNFcJKnJk4umS
 
 let CFG = {precioFoto:0, precioPack3:0, aliasMP:'', titularMP:'', partidos:[]};
 let seleccion = [];   // {id, codigo, partido}
+let fotosGaleria = [];   // lista de fotos del partido actual, para navegar en el visor
+let visorIdx = -1;       // índice de la foto abierta en el visor
 let adminPin = '';
 const escudoImg = new Image();
 escudoImg.src = document.querySelector('.escudo').src;
@@ -372,6 +392,7 @@ async function cargarFotos(){
   const d = await apiGet({action:'fotos', folder});
   const nombrePartido = sel.selectedOptions[0].dataset.nombre;
   if(!d.fotos || !d.fotos.length){ $('galeria').innerHTML=''; $('galVacia').style.display='block'; return; }
+  fotosGaleria = d.fotos.map(f=>({id:f.id, codigo:f.codigo}));
   $('galeria').innerHTML = d.fotos.map(f=>`
     <div class="foto ${estaSel(f.id)?'sel':''}" id="f-${f.id}" onclick="toggleFoto('${f.id}','${f.codigo}','${nombrePartido.replace(/'/g,"\\'")}')">
       <img loading="lazy" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w400" alt="Foto ${f.codigo}">
@@ -384,13 +405,50 @@ function estaSel(id){ return seleccion.some(s=>s.id===id); }
 /* ---------- visor ampliado ---------- */
 let visorActual = null;
 function verFoto(id, codigo){
-  visorActual = {id, codigo};
-  $('visorImg').src = `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
-  $('visorCod').textContent = codigo;
-  actualizarBotonVisor();
+  const idx = fotosGaleria.findIndex(f=>f.id===id);
+  visorIdx = idx>=0 ? idx : -1;
+  mostrarEnVisor(id, codigo);
   $('visor').classList.add('on');
 }
-function cerrarFoto(){ $('visor').classList.remove('on'); visorActual=null; }
+function mostrarEnVisor(id, codigo){
+  visorActual = {id, codigo};
+  $('visorImg').src = `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
+  const hayVarias = fotosGaleria.length > 1 && visorIdx >= 0;
+  $('visorCod').textContent = hayVarias ? `${codigo}  ·  ${visorIdx+1}/${fotosGaleria.length}` : codigo;
+  actualizarBotonVisor();
+  const pv = $('vprev'), nx = $('vnext');
+  if(pv) pv.style.display = hayVarias ? 'flex' : 'none';
+  if(nx) nx.style.display = hayVarias ? 'flex' : 'none';
+}
+function navVisor(dir){
+  if(visorIdx < 0 || fotosGaleria.length < 2) return;
+  visorIdx = (visorIdx + dir + fotosGaleria.length) % fotosGaleria.length;
+  const f = fotosGaleria[visorIdx];
+  mostrarEnVisor(f.id, f.codigo);
+}
+function cerrarFoto(){ $('visor').classList.remove('on'); visorActual=null; visorIdx=-1; }
+
+/* gestos: deslizar en el celu + flechas del teclado en la compu */
+(function(){
+  let sx=null, sy=null;
+  const abierto = ()=>{ const v=document.getElementById('visor'); return v && v.classList.contains('on'); };
+  document.addEventListener('touchstart', e=>{
+    if(!abierto()) return;
+    const t=e.changedTouches[0]; sx=t.clientX; sy=t.clientY;
+  }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    if(!abierto() || sx===null) return;
+    const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
+    if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)) navVisor(dx<0 ? 1 : -1);
+    sx=sy=null;
+  }, {passive:true});
+  document.addEventListener('keydown', e=>{
+    if(!abierto()) return;
+    if(e.key==='ArrowRight') navVisor(1);
+    else if(e.key==='ArrowLeft') navVisor(-1);
+    else if(e.key==='Escape') cerrarFoto();
+  });
+})();
 function actualizarBotonVisor(){
   if(!visorActual) return;
   const sel = estaSel(visorActual.id);
@@ -425,24 +483,49 @@ function actualizarBadge(){
 }
 
 /* ---------- pedido ---------- */
+function quitarDelPedido(id){
+  const i = seleccion.findIndex(s=>s.id===id);
+  if(i>=0) seleccion.splice(i,1);
+  const el = document.getElementById('f-'+id); if(el) el.classList.remove('sel');
+  actualizarBadge(); pintarPedido();
+}
 function pintarPedido(){
   if(!seleccion.length){
     $('listaSel').innerHTML = '<p class="aviso">Todavía no elegiste fotos. Volvé a la galería y tocá las que quieras.</p>';
     $('totalTxt').textContent = fmt(0); $('packAviso').textContent=''; 
     $('mpAviso').textContent = ''; return;
   }
-  $('listaSel').innerHTML = seleccion.map(s=>`<span class="chip mono">${s.codigo} ✕</span>`).join('');
-  document.querySelectorAll('#listaSel .chip').forEach((c,i)=>c.onclick=()=>{ seleccion.splice(i,1); actualizarBadge(); pintarPedido(); cargarFotos(); });
+  $('listaSel').innerHTML = '<div class="selgrid">' + seleccion.map(s=>`
+    <div class="selitem">
+      <img loading="lazy" src="https://drive.google.com/thumbnail?id=${s.id}&sz=w300" alt="Foto ${s.codigo}">
+      <button class="squit" onclick="quitarDelPedido('${s.id}')" aria-label="Quitar">✕</button>
+      <div class="scod">${s.codigo}</div>
+    </div>`).join('') + '</div>';
   $('totalTxt').textContent = fmt(calcTotal());
   const falta = 3 - (seleccion.length % 3);
   $('packAviso').textContent = (seleccion.length%3!==0 && falta<3) ? `💡 Agregando ${falta} foto${falta>1?'s':''} más entrás al precio de pack.` : '';
   $('mpAviso').innerHTML = '✓ Se va a abrir Mercado Pago para completar el pago de forma segura.';
+}
+function verTerminos(e){
+  if(e) e.preventDefault();
+  alert(
+    'TÉRMINOS DE USO — FOTOS SC BÁSQUET\n'+
+    'Club Independiente de Tandil\n'+
+    '——————————————\n\n'+
+    '1. Las fotografías se toman durante partidos de las categorías formativas y se ofrecen a las familias de los jugadores.\n\n'+
+    '2. Al comprar, declarás ser madre, padre o tutor/a legal del/los menor/es fotografiado/s, y autorizás a SC Básquet a comercializarte esas imágenes (art. 53 CCyC y art. 31 Ley 11.723).\n\n'+
+    '3. Las fotos se entregan para uso PERSONAL y FAMILIAR. No está permitido usarlas con fines comerciales ni publicarlas de modo que se identifique a otros menores sin autorización de sus familias.\n\n'+
+    '4. El club conserva las imágenes originales de forma privada y las entrega únicamente a la familia que las adquiere.\n\n'+
+    '5. Ante cualquier duda o pedido de baja de una imagen, escribinos y la retiramos.\n\n'+
+    'Gracias por acompañar al básquet formativo del club. 🏀'
+  );
 }
 async function enviarPedido(){
   const nombre = $('fNombre').value.trim(), email = $('fEmail').value.trim(), tel = $('fTel').value.trim();
   if(!seleccion.length) return alert('Elegí al menos una foto en la galería.');
   if(!nombre || !tel) return alert('Completá tu nombre y teléfono.');
   if(!email) return alert('Completá tu email.');
+  if(!$('fConsent').checked) return alert('Para continuar, marcá la casilla de autorización de uso de imagen.');
   $('btnEnviar').disabled = true; $('btnEnviar').textContent = 'Procesando…';
   const ventana = window.open('', '_blank'); // abrir ya, para no ser bloqueado
   try{
@@ -450,7 +533,8 @@ async function enviarPedido(){
       action:'pedido', nombre, email, telefono:tel,
       partido: seleccion[0].partido,
       codigos: seleccion.map(s=>s.codigo),
-      total: calcTotal()
+      total: calcTotal(),
+      consentimiento: 'SÍ · ' + new Date().toLocaleString('es-AR')
     });
     if(d.ok && d.prefId){
       const urlPago = 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=' + d.prefId;
