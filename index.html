@@ -205,6 +205,11 @@ progress{border-radius:99px;overflow:hidden}
 
     <!-- ================= PANEL FOTÓGRAFO ================= -->
     <div id="fotoPanel" style="display:none">
+      <div class="card" id="fpResumenCard">
+        <h2>💰 Tus números</h2>
+        <p class="aviso" style="margin-bottom:10px">Sobre las fotos ya entregadas (cerradas).</p>
+        <div id="fpResumen"><p class="aviso">Cargando…</p></div>
+      </div>
       <div class="card">
         <h2>📷 Panel del fotógrafo</h2>
         <label>Partido</label>
@@ -580,6 +585,7 @@ async function adminEntrar(){
   $('adminLogin').style.display='none';
   if(l.rol === 'fotografo'){
     $('fotoPanel').style.display='block';
+    fpCargarResumen();
     fpCargarPartidos();
     fpInit();
   } else {
@@ -592,6 +598,21 @@ async function adminEntrar(){
 /* ---------- panel fotógrafo ---------- */
 let fpArchivos = [];
 let fpListo = false;
+async function fpCargarResumen(){
+  const d = await apiPost({action:'fotografo', pin:adminPin, op:'resumen'});
+  if(!d || !d.ok){ $('fpResumen').innerHTML = '<p class="aviso">No se pudo cargar el resumen por ahora.</p>'; return; }
+  $('fpResumen').innerHTML = `
+    <div class="card" style="margin:0 0 12px;background:var(--carbon);text-align:center">
+      <div class="aviso">Fotos vendidas</div>
+      <div class="num" style="font-size:34px">${d.cantidad}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+      <div style="display:flex;justify-content:space-between"><span>Tu parte (${d.pctFoto}%)</span><b class="mono">${fmt(d.brutoFoto)}</b></div>
+      <div style="display:flex;justify-content:space-between;color:var(--gris)"><span>Descuento Mercado Pago (tu 2%)</span><b class="mono">- ${fmt(d.feeMitad)}</b></div>
+      <div style="height:1px;background:var(--humo);margin:2px 0"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:18px"><span><b>Neto para vos</b></span><b class="mono warn">${fmt(d.netoFoto)}</b></div>
+    </div>`;
+}
 function fpInit(){
   if(fpListo) return; fpListo = true;
   $('fpInp').addEventListener('change', e=>{
