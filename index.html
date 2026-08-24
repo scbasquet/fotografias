@@ -259,11 +259,18 @@ progress{border-radius:99px;overflow:hidden}
       <div id="asec-contable" style="display:none">
         <div class="liq" style="margin-bottom:14px">
           <div class="card"><div class="aviso">Fotos vendidas</div><div class="num" style="color:var(--crema)" id="ctFotos">0</div></div>
-          <div class="card"><div class="aviso">Recaudado</div><div class="num" style="color:var(--dorado)" id="ctTotal">$0</div></div>
+          <div class="card"><div class="aviso">Recaudado (bruto)</div><div class="num" style="color:var(--dorado)" id="ctTotal">$0</div></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="aviso">Comisión Mercado Pago (4%)</span>
+            <b class="mono" style="color:var(--gris)">- <span id="ctComision">$0</span></b>
+          </div>
+          <p class="aviso" style="margin-top:4px;font-size:11px">Se reparte mitad y mitad: 2% lo absorbe SC Básquet y 2% el fotógrafo. Los montos de abajo ya son netos.</p>
         </div>
         <div class="liq" style="margin-bottom:14px">
-          <div class="card"><div class="aviso">SC Básquet</div><div class="num ok" id="ctClub">$0</div></div>
-          <div class="card"><div class="aviso">Fotógrafo</div><div class="num warn" id="ctFotografo">$0</div></div>
+          <div class="card"><div class="aviso">SC Básquet (neto)</div><div class="num ok" id="ctClub">$0</div></div>
+          <div class="card"><div class="aviso">Fotógrafo (neto)</div><div class="num warn" id="ctFotografo">$0</div></div>
         </div>
         <p class="aviso" style="margin-bottom:12px">Solo cuenta pedidos <b>Pagados</b> y <b>Entregados</b>. Los pendientes no entran hasta que confirmes el pago.</p>
         <div class="card">
@@ -601,17 +608,31 @@ let fpListo = false;
 async function fpCargarResumen(){
   const d = await apiPost({action:'fotografo', pin:adminPin, op:'resumen'});
   if(!d || !d.ok){ $('fpResumen').innerHTML = '<p class="aviso">No se pudo cargar el resumen por ahora.</p>'; return; }
+  const sProm = d.promos===1?'promo':'promos';
+  const sInd = d.sueltas===1?'foto individual':'fotos individuales';
   $('fpResumen').innerHTML = `
     <div class="card" style="margin:0 0 12px;background:var(--carbon);text-align:center">
       <div class="aviso">Fotos vendidas</div>
       <div class="num" style="font-size:34px">${d.cantidad}</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+      <div style="display:flex;justify-content:space-between"><span>🎟️ ${d.promos} ${sProm} <span style="color:var(--gris)">(pack de 3 · ${fmt(d.precioPack3)} c/u)</span></span></div>
+      <div style="display:flex;justify-content:space-between"><span>📷 ${d.sueltas} ${sInd} <span style="color:var(--gris)">(${fmt(d.precioFoto)} c/u)</span></span></div>
+      <div style="height:1px;background:var(--humo);margin:4px 0"></div>
       <div style="display:flex;justify-content:space-between"><span>Tu parte (${d.pctFoto}%)</span><b class="mono">${fmt(d.brutoFoto)}</b></div>
-      <div style="display:flex;justify-content:space-between;color:var(--gris)"><span>Descuento Mercado Pago (tu 2%)</span><b class="mono">- ${fmt(d.feeMitad)}</b></div>
-      <div style="height:1px;background:var(--humo);margin:2px 0"></div>
+      <div style="display:flex;justify-content:space-between;color:var(--gris)"><span>Comisión Mercado Pago (tu 2%)</span><b class="mono">- ${fmt(d.feeMitad)}</b></div>
+      <div style="height:1px;background:var(--humo);margin:4px 0"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:18px"><span><b>Neto para vos</b></span><b class="mono warn">${fmt(d.netoFoto)}</b></div>
-    </div>`;
+    </div>
+    ${(d.porPartido && d.porPartido.length) ? `
+    <div style="margin-top:16px">
+      <div class="aviso" style="margin-bottom:6px;text-transform:uppercase;font-size:11px;font-weight:700;letter-spacing:.04em">Por partido</div>
+      ${d.porPartido.map(pp=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--humo)">
+          <span style="flex:1;font-size:13px">${pp.partido}<br><span style="color:var(--gris);font-size:11px">${pp.cantidad} fotos · ${pp.promos} promo${pp.promos===1?'':'s'} · ${pp.sueltas} ind.</span></span>
+          <b class="mono warn" style="font-size:13px">${fmt(pp.neto)}</b>
+        </div>`).join('')}
+    </div>` : ''}`;
 }
 function fpInit(){
   if(fpListo) return; fpListo = true;
@@ -811,29 +832,41 @@ const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agos
 function pintarContable(){
   const pagados = ultimosPedidos.filter(p=>p.estado==='Pagado'||p.estado==='Entregado');
   const pc = ultimoPorcClub;
-  let fotos=0, total=0, club=0;
+  let fotos=0, total=0;
   const porMes = {}, porPartido = {};
   pagados.forEach(p=>{
     const cant = Number(p.cant)||0, monto = Number(p.total)||0;
-    const mc = Math.round(monto*pc/100);
-    fotos += cant; total += monto; club += mc;
+    fotos += cant; total += monto;
     const f = new Date(p.fecha);
     const kMes = f.getFullYear() + '-' + ('0'+(f.getMonth()+1)).slice(-2);
-    if(!porMes[kMes]) porMes[kMes] = {label: MESES_ES[f.getMonth()] + ' ' + f.getFullYear(), fotos:0, total:0, club:0};
-    porMes[kMes].fotos += cant; porMes[kMes].total += monto; porMes[kMes].club += mc;
+    if(!porMes[kMes]) porMes[kMes] = {label: MESES_ES[f.getMonth()] + ' ' + f.getFullYear(), fotos:0, total:0};
+    porMes[kMes].fotos += cant; porMes[kMes].total += monto;
     const kP = p.partido || 'Sin partido';
     if(!porPartido[kP]) porPartido[kP] = {fotos:0, total:0};
     porPartido[kP].fotos += cant; porPartido[kP].total += monto;
   });
+  // Reparto con comisión de Mercado Pago (4%, mitad club / mitad fotógrafo)
+  const reparto = (t)=>{
+    const clubBruto = t*pc/100;
+    const feeMitad = t*0.02;                 // 2% cada uno
+    return {
+      club: Math.round(clubBruto - feeMitad),
+      foto: Math.round((t - clubBruto) - feeMitad),
+      fee:  Math.round(t*0.04)
+    };
+  };
+  const R = reparto(total);
   $('ctFotos').textContent = fotos;
   $('ctTotal').textContent = fmt(total);
-  $('ctClub').textContent = fmt(club);
-  $('ctFotografo').textContent = fmt(total - club);
+  $('ctComision').textContent = fmt(R.fee);
+  $('ctClub').textContent = fmt(R.club);
+  $('ctFotografo').textContent = fmt(R.foto);
 
   const mesesKeys = Object.keys(porMes).sort().reverse();
   $('ctMeses').innerHTML = mesesKeys.length
     ? mesesKeys.map(k=>{
         const m = porMes[k];
+        const rm = reparto(m.total);
         const liq = mesesLiquidados.includes(k);
         return `<div style="padding:10px 0;border-bottom:1px solid var(--humo)">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -841,8 +874,8 @@ function pintarContable(){
             <span class="mono aviso">${m.fotos} fotos</span>
           </div>
           <div style="display:flex;gap:14px;margin-top:6px;font-size:13px">
-            <span>Club <b class="mono ok">${fmt(m.club)}</b></span>
-            <span>Fotógrafo <b class="mono warn">${fmt(m.total - m.club)}</b></span>
+            <span>Club <b class="mono ok">${fmt(rm.club)}</b></span>
+            <span>Fotógrafo <b class="mono warn">${fmt(rm.foto)}</b></span>
           </div>
           <button class="btn ${liq?'btn-borde':'btn-dorado'}" style="margin-top:8px;padding:9px" onclick="liquidarMes('${k}')">${liq?'↩ Reabrir mes':'✓ Marcar como liquidado'}</button>
         </div>`;
