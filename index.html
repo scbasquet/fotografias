@@ -76,7 +76,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .lupa:active{transform:scale(.9)}
 .visor{position:fixed;inset:0;background:rgba(8,5,7,.95);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
 .visor.on{display:flex;animation:aparecer .2s ease-out}
-.visor img{max-width:100%;max-height:82vh;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.visor img{width:100%;max-height:82vh;object-fit:contain;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .visor .vcod{margin-top:14px;font-family:'JetBrains Mono';font-weight:700;color:var(--dorado);letter-spacing:.05em;font-size:15px}
 .visor .vcerrar{position:absolute;top:16px;right:16px;width:44px;height:44px;border:0;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font-size:22px;cursor:pointer}
 .visor .vnav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border:0;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font-size:30px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);z-index:2}
@@ -408,7 +408,7 @@ async function cargarFotos(){
   fotosGaleria = d.fotos.map(f=>({id:f.id, codigo:f.codigo}));
   $('galeria').innerHTML = d.fotos.map(f=>`
     <div class="foto ${estaSel(f.id)?'sel':''}" id="f-${f.id}" onclick="toggleFoto('${f.id}','${f.codigo}','${nombrePartido.replace(/'/g,"\\'")}')">
-      <img loading="lazy" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w400" alt="Foto ${f.codigo}">
+      <img loading="lazy" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w200" alt="Foto ${f.codigo}">
       <button class="lupa" onclick="event.stopPropagation();verFoto('${f.id}','${f.codigo}')" aria-label="Ampliar">🔍</button>
       <div class="cod mono">${f.codigo}</div>
     </div>`).join('');
