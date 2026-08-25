@@ -66,7 +66,8 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .foto{position:relative;border-radius:13px;overflow:hidden;border:2px solid var(--humo);aspect-ratio:1;background:var(--carbon);cursor:pointer;transition:transform .15s, border-color .15s, box-shadow .15s}
 .foto:active{transform:scale(.97)}
-.foto img{width:100%;height:100%;object-fit:cover;display:block}
+.foto img{width:100%;height:100%;object-fit:cover;display:block;-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none;pointer-events:none}
+#visorImg{-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none}
 .foto .cod{position:absolute;left:0;bottom:0;right:0;background:linear-gradient(transparent,rgba(15,11,13,.94) 45%);padding:20px 9px 7px;font-size:11.5px;font-weight:700;color:var(--dorado);letter-spacing:.05em;display:flex;align-items:center;gap:6px}
 .foto .cod::before{content:'';width:7px;height:7px;background:var(--dorado);border-radius:2px;flex:none;opacity:.9}
 .foto.sel{border-color:var(--dorado);box-shadow:0 0 0 3px rgba(242,177,46,.28), 0 6px 16px rgba(0,0,0,.4)}
@@ -303,8 +304,8 @@ progress{border-radius:99px;overflow:hidden}
       <div id="asec-config" style="display:none">
         <div class="card">
           <h2>Configuración de pagos (Mercado Pago)</h2>
-          <p class="aviso">El token se guarda solamente en Apps Script. Dejalo vacío para conservar el valor actual. <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" style="color:var(--dorado)">Obtener token →</a></p>
-          <label>Nuevo MP Access Token (opcional)</label><input id="cfMpToken" type="password" placeholder="Pegá un token nuevo solo si querés cambiarlo">
+          <p class="aviso">El token de MP es necesario para cobrar. <a href="https://www.mercadopago.com.ar/developers/panel/app" target="_blank" style="color:var(--dorado)">Obtener token →</a></p>
+          <label>MP Access Token</label><input id="cfMpToken" type="password" placeholder="Pegá tu token aquí">
           <button class="btn btn-borde" style="margin-top:8px" onclick="toggleMpToken()">Mostrar/Ocultar</button>
         </div>
 
@@ -318,8 +319,8 @@ progress{border-radius:99px;overflow:hidden}
 
         <div class="card">
           <h2>Seguridad</h2>
-          <label>Nuevo PIN de administrador (opcional)</label><input id="cfPin" class="mono" placeholder="Dejá vacío para conservarlo">
-          <label>Nuevo PIN del fotógrafo (opcional)</label><input id="cfPinFoto" class="mono" placeholder="Dejá vacío para conservarlo">
+          <label>PIN de administrador</label><input id="cfPin" class="mono">
+          <label>PIN del fotógrafo</label><input id="cfPinFoto" class="mono" placeholder="Ej: 5678">
           <p class="aviso" style="margin-top:6px">Con su PIN, el fotógrafo entra por la misma pestaña Acceso y ve solo su panel de carga de fotos.</p>
         </div>
 
@@ -459,6 +460,15 @@ function cerrarFoto(){ $('visor').classList.remove('on'); visorActual=null; viso
     if(e.key==='ArrowRight') navVisor(1);
     else if(e.key==='ArrowLeft') navVisor(-1);
     else if(e.key==='Escape') cerrarFoto();
+  });
+  // Bloquear clic derecho ("Guardar imagen") y arrastre sobre las fotos
+  document.addEventListener('contextmenu', e=>{
+    if(e.target.tagName==='IMG' || e.target.closest('.foto') || e.target.closest('#visor')){
+      e.preventDefault();
+    }
+  });
+  document.addEventListener('dragstart', e=>{
+    if(e.target.tagName==='IMG') e.preventDefault();
   });
 })();
 function actualizarBotonVisor(){
@@ -667,7 +677,7 @@ function fpCargarImagen(file){
   });
 }
 function fpMarcar(img, texto){
-  return fpRender_(img, texto, 2000, 0.85);
+  return fpRender_(img, texto, 400, 0.78);
 }
 function fpOriginal(img){
   return fpRender_(img, null, 4000, 0.92);
@@ -945,30 +955,27 @@ async function cargarConfig(){
   const d = await apiPost({action:'admin', pin:adminPin, op:'getconfig'});
   if(!d.ok) return alert(d.error||'Error');
   const c = d.config;
-  $('cfMpToken').value = '';
+  $('cfMpToken').value = c.MP_ACCESS_TOKEN || ''; 
   $('cfEmail').value = c.EMAIL_ADMIN; $('cfPrecio').value = c.PRECIO_FOTO;
   $('cfPack').value = c.PRECIO_PACK3; $('cfPorc').value = c.PORCENTAJE_CLUB;
-  $('cfPin').value = '';
-  $('cfPinFoto').value = '';
+  $('cfPin').value = c.PIN_ADMIN;
+  $('cfPinFoto').value = c.PIN_FOTOGRAFO || '';
 }
 async function guardarConfig(){
   const config = {
+    MP_ACCESS_TOKEN: $('cfMpToken').value.trim(),
     EMAIL_ADMIN: $('cfEmail').value.trim(),
     PRECIO_FOTO: Number($('cfPrecio').value),
     PRECIO_PACK3: Number($('cfPack').value),
-    PORCENTAJE_CLUB: Number($('cfPorc').value)
+    PORCENTAJE_CLUB: Number($('cfPorc').value),
+    PIN_ADMIN: $('cfPin').value.trim(),
+    PIN_FOTOGRAFO: $('cfPinFoto').value.trim()
   };
-  const nuevoToken = $('cfMpToken').value.trim();
-  const nuevoPin = $('cfPin').value.trim();
-  const nuevoPinFoto = $('cfPinFoto').value.trim();
-  if(nuevoToken) config.MP_ACCESS_TOKEN = nuevoToken;
-  if(nuevoPin) config.PIN_ADMIN = nuevoPin;
-  if(nuevoPinFoto) config.PIN_FOTOGRAFO = nuevoPinFoto;
   if(config.PORCENTAJE_CLUB<0 || config.PORCENTAJE_CLUB>100) return alert('El porcentaje tiene que estar entre 0 y 100.');
   const d = await apiPost({action:'admin', pin:adminPin, op:'setconfig', config});
   if(d.ok){
-    adminPin = nuevoPin || adminPin;
-    alert('✅ Configuración guardada.');
+    adminPin = config.PIN_ADMIN || adminPin;
+    alert('✅ Configuración guardada. ' + (config.MP_ACCESS_TOKEN ? '✓ MP activado.' : '⚠️ MP no configurado'));
     CFG.precioFoto = config.PRECIO_FOTO; CFG.precioPack3 = config.PRECIO_PACK3;
     $('precios').innerHTML = `Precio: <b>${fmt(CFG.precioFoto)}</b> por foto · Pack 3 fotos: <b>${fmt(CFG.precioPack3)}</b>`;
   } else alert(d.error||'Error al guardar');
