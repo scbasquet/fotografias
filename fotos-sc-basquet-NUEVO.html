@@ -461,6 +461,15 @@ function cerrarFoto(){ $('visor').classList.remove('on'); visorActual=null; viso
     else if(e.key==='ArrowLeft') navVisor(-1);
     else if(e.key==='Escape') cerrarFoto();
   });
+  // Bloquear clic derecho ("Guardar imagen") y arrastre sobre las fotos
+  document.addEventListener('contextmenu', e=>{
+    if(e.target.tagName==='IMG' || e.target.closest('.foto') || e.target.closest('#visor')){
+      e.preventDefault();
+    }
+  });
+  document.addEventListener('dragstart', e=>{
+    if(e.target.tagName==='IMG') e.preventDefault();
+  });
 })();
 function actualizarBotonVisor(){
   if(!visorActual) return;
@@ -668,7 +677,7 @@ function fpCargarImagen(file){
   });
 }
 function fpMarcar(img, texto){
-  return fpRender_(img, texto, 1280, 0.80);
+  return fpRender_(img, texto, 400, 0.78);
 }
 function fpOriginal(img){
   return fpRender_(img, null, 4000, 0.92);
