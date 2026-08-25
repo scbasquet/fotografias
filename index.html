@@ -145,7 +145,7 @@ progress{border-radius:99px;overflow:hidden}
     <div class="card">
       <label>Elegí el partido</label>
       <select id="selPartido" onchange="cargarFotos()"><option value="">Cargando partidos…</option></select>
-      <p class="aviso" style="margin-top:10px">Tocá las fotos que quieras encargar. Las imágenes tienen marca de agua: la foto final te llega limpia y en alta calidad.</p>
+      <p class="aviso" style="margin-top:10px;background:rgba(226,177,46,.12);border:1px solid var(--dorado);border-radius:10px;padding:10px 12px;color:var(--crema)">📷 Tocá las fotos que quieras encargar. La vista previa tiene marca de agua y baja calidad. <b>Una vez adquirida la fotografía, la misma será enviada a Ud. en alta calidad.</b></p>
       <p class="aviso" id="precios" style="margin-top:6px"></p>
     </div>
     <div id="galeria" class="grid"></div>
@@ -341,6 +341,7 @@ progress{border-radius:99px;overflow:hidden}
   <button class="vnav vnext" id="vnext" onclick="navVisor(1)" aria-label="Siguiente">›</button>
   <img id="visorImg" src="" alt="">
   <div class="vcod" id="visorCod"></div>
+  <p style="max-width:320px;text-align:center;font-size:12.5px;color:var(--dorado);margin-top:8px;line-height:1.4">✨ Una vez adquirida la fotografía, la misma será enviada a Ud. en alta calidad.</p>
   <button class="btn btn-dorado vsel" id="visorBtn" onclick="toggleDesdeVisor()">Agregar a mi pedido</button>
 </div>
 
