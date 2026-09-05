@@ -426,7 +426,7 @@ function verFoto(id, codigo){
 }
 function mostrarEnVisor(id, codigo){
   visorActual = {id, codigo};
-  $('visorImg').src = `https://drive.google.com/thumbnail?id=${id}&sz=w125`;
+  $('visorImg').src = `https://drive.google.com/thumbnail?id=${id}&sz=w200`;
   const hayVarias = fotosGaleria.length > 1 && visorIdx >= 0;
   $('visorCod').textContent = hayVarias ? `${codigo}  ·  ${visorIdx+1}/${fotosGaleria.length}` : codigo;
   actualizarBotonVisor();
